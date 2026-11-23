@@ -102,10 +102,11 @@ export function runDuel(world, pilotTurn, maxTurns = 30) {
 }
 
 // The cover pose: two full smart turns, then turn three played only
-// two cards deep — a counter first, then a second card of the same suit
-// so the Surge fires — and frozen there, mid-turn, with both cards in
-// the middle of the table and the banner still lit. Turn three, not
-// four: by turn four a good duel is often already decided.
+// two cards deep — a counter first, then a surge card of a SECOND suit
+// so the clash shows two colours, not one — and frozen there, mid-turn,
+// with both cards in the middle of the table and the banner still lit.
+// Turn three, not four: by turn four a good duel is often already
+// decided.
 function playCoverTurn(world) {
   const hand = world.player.hand;
   const stance = world.rival.stance;
@@ -135,15 +136,18 @@ function playCoverTurn(world) {
   if (first < 0) return 0;
   const firstSuit = hand[first].suit;
   playCard(world, first);
-  // Second: the same suit if held, so the Surge pays — a surge card
-  // first — but any second card the tide allows still joins the clash:
-  // the cover wants two cards in the middle, not one.
+  // Second: a surge card of a DIFFERENT suit first — the cover wants
+  // two colours in the clash, not a repeat of the first card. A
+  // same-suit surge still ranks above a plain strike (it pays +2), and
+  // a guard still ranks last: the cover wants two cards in the middle,
+  // not one, and not a shield.
   let second = -1;
   let secondValue = -Infinity;
   world.player.hand.forEach((card, i) => {
     if (card.cost > world.player.tide) return;
     let value = card.power * 10 - card.cost;
-    if (card.suit === firstSuit) value += 50;
+    if (card.kind === 'surge' && card.suit !== firstSuit) value += 90;
+    else if (card.suit === firstSuit) value += 50;
     if (card.kind === 'surge' && card.suit === firstSuit) value += 30;
     if (card.kind === 'guard') value -= 40;
     if (value > secondValue) {

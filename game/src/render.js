@@ -430,9 +430,74 @@ function drawHeader(ctx, world) {
 
 // ---------------------------------------------------------------- clash + log
 
+// Nereida herself, looming behind the clash: a giant jellyfish, drawn
+// faint and far back so the cards stay in front and stay readable. The
+// dome caps above the clash row, the tentacles trail behind the cards
+// and show in the gaps and below them — a focal point, not a curtain.
+// Alpha stays low on purpose: if this ever fights the cards, the fix
+// is to dim it further, never to move the cards.
+function drawNereidaFigure(ctx, world) {
+  const cx = 640;
+  const domeY = 315;
+  const r = 205;
+  // Warm halo behind the whole clash, so the figure reads as one glow.
+  const halo = ctx.createRadialGradient(cx, 310, 30, cx, 310, 340);
+  halo.addColorStop(0, 'rgba(255, 122, 89, 0.10)');
+  halo.addColorStop(0.6, 'rgba(255, 122, 89, 0.04)');
+  halo.addColorStop(1, 'rgba(255, 122, 89, 0)');
+  ctx.fillStyle = halo;
+  ctx.fillRect(cx - 340, 0, 680, 560);
+  // The dome: a half-disc rising above the clash row.
+  const dome = ctx.createRadialGradient(cx, 190, 20, cx, 240, r);
+  dome.addColorStop(0, 'rgba(255, 170, 140, 0.17)');
+  dome.addColorStop(0.7, 'rgba(255, 122, 89, 0.10)');
+  dome.addColorStop(1, 'rgba(255, 122, 89, 0.04)');
+  ctx.beginPath();
+  ctx.arc(cx, domeY, r, Math.PI, 0);
+  ctx.closePath();
+  ctx.fillStyle = dome;
+  ctx.fill();
+  ctx.lineWidth = 2.5;
+  ctx.strokeStyle = 'rgba(255, 181, 158, 0.38)';
+  ctx.stroke();
+  // Inner dome, a second shell of light.
+  ctx.beginPath();
+  ctx.arc(cx, domeY, r * 0.62, Math.PI, 0);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(255, 190, 160, 0.09)';
+  ctx.fill();
+  // Her eyes on the dome cap, above the cards: she is watching the duel.
+  ctx.fillStyle = 'rgba(22, 13, 46, 0.55)';
+  ctx.beginPath();
+  ctx.arc(cx - 52, 168, 7, 0, Math.PI * 2);
+  ctx.arc(cx + 52, 168, 7, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(232, 201, 122, 0.85)';
+  ctx.beginPath();
+  ctx.arc(cx - 50, 166, 2, 0, Math.PI * 2);
+  ctx.arc(cx + 54, 166, 2, 0, Math.PI * 2);
+  ctx.fill();
+  // Tentacles trailing behind the cards, swaying slowly on the clock.
+  ctx.strokeStyle = 'rgba(255, 150, 120, 0.20)';
+  ctx.lineWidth = 3;
+  ctx.lineCap = 'round';
+  for (let i = -3; i <= 3; i += 1) {
+    const tx = cx + i * 52;
+    const sway = Math.sin(world.time * 1.1 + i * 1.3) * 10;
+    ctx.beginPath();
+    ctx.moveTo(tx, domeY - 6);
+    ctx.quadraticCurveTo(tx + sway, domeY + 80, tx + sway * 0.6, domeY + 155);
+    ctx.stroke();
+  }
+}
+
 function drawClash(ctx, world) {
+  // The figure first: everything else in the clash paints over her.
+  drawNereidaFigure(ctx, world);
   // The banner: the last surge or counter, or the turn's invitation.
-  if (world.banner && world.time - world.bannerBorn < 6) {
+  // Never on an end screen: the headline ribbon owns that space now,
+  // and a stale banner would fight it.
+  if (world.screen === SCREEN_PLAY && world.banner && world.time - world.bannerBorn < 6) {
     text(ctx, world.banner, 640, 152, 'bold 20px Georgia, serif', GOLD, 'center');
   }
 
@@ -497,7 +562,10 @@ function drawLog(ctx, world) {
   const lx = 1052;
   const ly = 130;
   const lw = 204;
-  const lh = 330;
+  // Shorter panel than before (210, was 330): the log now holds five
+  // punchy lines at a bigger size, and the Surge explainer moved to the
+  // title screen, which already states the rule in full.
+  const lh = 210;
   rr(ctx, lx, ly, lw, lh, 10);
   ctx.fillStyle = PANEL;
   ctx.fill();
@@ -506,8 +574,9 @@ function drawLog(ctx, world) {
   ctx.stroke();
   text(ctx, 'THE DUEL SO FAR', lx + 12, ly + 22, 'bold 12px system-ui, sans-serif', GOLD);
   // Wrap long lines to the panel's width so no log line ever runs past
-  // the panel's edge, then show the last seven wrapped lines.
-  ctx.font = '12px system-ui, sans-serif';
+  // the panel's edge, then show the last five wrapped lines, at 16 px
+  // (was 12 px) so the duel's story still reads at thumbnail size.
+  ctx.font = '16px system-ui, sans-serif';
   const wrapped = [];
   for (const line of world.log) {
     const words = line.split(' ');
@@ -523,17 +592,10 @@ function drawLog(ctx, world) {
     }
     if (cur !== '') wrapped.push(cur);
   }
-  const shown = wrapped.slice(-7);
+  const shown = wrapped.slice(-5);
   shown.forEach((line, i) => {
-    text(ctx, line, lx + 12, ly + 48 + i * 22, '12px system-ui, sans-serif', i === shown.length - 1 ? TEXT : MUTED);
+    text(ctx, line, lx + 12, ly + 54 + i * 27, '16px system-ui, sans-serif', i === shown.length - 1 ? TEXT : MUTED);
   });
-  ctx.strokeStyle = PANEL_LINE;
-  ctx.beginPath();
-  ctx.moveTo(lx + 12, ly + lh - 52);
-  ctx.lineTo(lx + lw - 12, ly + lh - 52);
-  ctx.stroke();
-  text(ctx, 'Surge: two of one suit in a turn', lx + 12, ly + lh - 32, 'italic 11.5px system-ui, sans-serif', MUTED);
-  text(ctx, '— the second gains +2.', lx + 12, ly + lh - 16, 'italic 11.5px system-ui, sans-serif', MUTED);
 }
 
 // ---------------------------------------------------------------- bottom
@@ -643,22 +705,43 @@ function drawTitle(ctx, world) {
 }
 
 function drawEndScreen(ctx, world, won) {
-  ctx.fillStyle = 'rgba(3, 12, 22, 0.68)';
+  // A lighter veil than before (0.55, was 0.68): the clash cards are
+  // the evidence of the duel and must stay readable under it.
+  ctx.fillStyle = 'rgba(3, 12, 22, 0.55)';
   ctx.fillRect(0, 0, FIELD.width, FIELD.height);
   const title = won ? 'THE TIDE IS YOURS' : 'THE DEEP KEEPS YOU';
   const color = won ? GOLD : CORAL_RED;
   const sub = won
     ? 'Nereida’s light goes out — the duel is yours.'
     : 'Nereida wins — the tide takes its due.';
-  text(ctx, title, 640, 250, 'bold 60px Georgia, serif', color, 'center');
-  text(ctx, sub, 640, 296, 'italic 22px Georgia, serif', TEXT, 'center');
+  // Headline ribbon ABOVE the clash row (y 120–174): it never covers a
+  // card name again. The ribbon sits between the rival-hand label
+  // (baseline 116) and the YOU PLAYED / SHE PLAYED labels (baseline
+  // 186), clear of both.
+  const rx = 300;
+  const rw = 680;
+  const ry = 120;
+  const rh = 54;
+  rr(ctx, rx, ry, rw, rh, 12);
+  ctx.fillStyle = 'rgba(5, 24, 38, 0.88)';
+  ctx.fill();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = color;
+  ctx.stroke();
+  text(ctx, title, 640, ry + rh / 2 + 1, 'bold 38px Georgia, serif', color, 'center', 'middle');
+  // Sub and stats in the gap below the clash cards (420) and above the
+  // hand (496); the life line folds into the stats line so nothing
+  // reaches the hand numbers at y 488.
+  text(ctx, sub, 640, 446, 'italic 20px Georgia, serif', TEXT, 'center');
   const r = world.result || { turns: world.turn, damageDealt: 0, surges: 0, counters: 0 };
-  const statsLine = `Won in ${r.turns} turns · ${r.damageDealt} damage dealt · ${r.surges} surges · ${r.counters} counters`;
-  const statsLineLoss = `Lasted ${r.turns} turns · ${r.damageDealt} damage dealt · ${r.surges} surges · ${r.counters} counters`;
-  text(ctx, won ? statsLine : statsLineLoss, 640, 350, '18px system-ui, sans-serif', TEXT, 'center');
-  text(ctx, `Nereida ${world.rival.life} life · You ${world.player.life} life`, 640, 384, '16px system-ui, sans-serif', MUTED, 'center');
+  const statsLine = won
+    ? `Won in ${r.turns} turns · ${r.damageDealt} damage dealt · ${r.surges} surges · ${r.counters} counters · Nereida ${world.rival.life} life · You ${world.player.life} life`
+    : `Lasted ${r.turns} turns · ${r.damageDealt} damage dealt · ${r.surges} surges · ${r.counters} counters · Nereida ${world.rival.life} life · You ${world.player.life} life`;
+  text(ctx, statsLine, 640, 472, '17px system-ui, sans-serif', TEXT, 'center');
+  // The prompt moves below the hand, into the sand: it used to sit in
+  // the same gap the sub and stats now need.
   // The prompt is solid gold, never a blink frozen mid-fade in a shot.
-  text(ctx, 'PRESS ENTER TO DUEL AGAIN', 640, 460, 'bold 18px system-ui, sans-serif', GOLD, 'center');
+  text(ctx, 'PRESS ENTER TO DUEL AGAIN', 640, 712, 'bold 18px system-ui, sans-serif', GOLD, 'center');
 }
 
 // The one entry point: paint the whole frame for this world.
