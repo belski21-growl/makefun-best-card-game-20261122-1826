@@ -441,45 +441,47 @@ function drawNereidaFigure(ctx, world) {
   const domeY = 315;
   const r = 205;
   // Warm halo behind the whole clash, so the figure reads as one glow.
+  // Alpha ~2x the r1 values: the dome was a rumour at thumbnail size.
   const halo = ctx.createRadialGradient(cx, 310, 30, cx, 310, 340);
-  halo.addColorStop(0, 'rgba(255, 122, 89, 0.10)');
-  halo.addColorStop(0.6, 'rgba(255, 122, 89, 0.04)');
+  halo.addColorStop(0, 'rgba(255, 122, 89, 0.20)');
+  halo.addColorStop(0.6, 'rgba(255, 122, 89, 0.08)');
   halo.addColorStop(1, 'rgba(255, 122, 89, 0)');
   ctx.fillStyle = halo;
   ctx.fillRect(cx - 340, 0, 680, 560);
   // The dome: a half-disc rising above the clash row.
   const dome = ctx.createRadialGradient(cx, 190, 20, cx, 240, r);
-  dome.addColorStop(0, 'rgba(255, 170, 140, 0.17)');
-  dome.addColorStop(0.7, 'rgba(255, 122, 89, 0.10)');
-  dome.addColorStop(1, 'rgba(255, 122, 89, 0.04)');
+  dome.addColorStop(0, 'rgba(255, 170, 140, 0.30)');
+  dome.addColorStop(0.7, 'rgba(255, 122, 89, 0.18)');
+  dome.addColorStop(1, 'rgba(255, 122, 89, 0.08)');
   ctx.beginPath();
   ctx.arc(cx, domeY, r, Math.PI, 0);
   ctx.closePath();
   ctx.fillStyle = dome;
   ctx.fill();
-  ctx.lineWidth = 2.5;
-  ctx.strokeStyle = 'rgba(255, 181, 158, 0.38)';
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = 'rgba(255, 181, 158, 0.60)';
   ctx.stroke();
   // Inner dome, a second shell of light.
   ctx.beginPath();
   ctx.arc(cx, domeY, r * 0.62, Math.PI, 0);
   ctx.closePath();
-  ctx.fillStyle = 'rgba(255, 190, 160, 0.09)';
+  ctx.fillStyle = 'rgba(255, 190, 160, 0.18)';
   ctx.fill();
   // Her eyes on the dome cap, above the cards: she is watching the duel.
-  ctx.fillStyle = 'rgba(22, 13, 46, 0.55)';
+  // Bigger and brighter than r1: dark discs 7 -> 9, gold glints 2 -> 3.5.
+  ctx.fillStyle = 'rgba(22, 13, 46, 0.80)';
   ctx.beginPath();
-  ctx.arc(cx - 52, 168, 7, 0, Math.PI * 2);
-  ctx.arc(cx + 52, 168, 7, 0, Math.PI * 2);
+  ctx.arc(cx - 52, 168, 9, 0, Math.PI * 2);
+  ctx.arc(cx + 52, 168, 9, 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillStyle = 'rgba(232, 201, 122, 0.85)';
+  ctx.fillStyle = 'rgba(232, 201, 122, 1.0)';
   ctx.beginPath();
-  ctx.arc(cx - 50, 166, 2, 0, Math.PI * 2);
-  ctx.arc(cx + 54, 166, 2, 0, Math.PI * 2);
+  ctx.arc(cx - 50, 166, 3.5, 0, Math.PI * 2);
+  ctx.arc(cx + 54, 166, 3.5, 0, Math.PI * 2);
   ctx.fill();
   // Tentacles trailing behind the cards, swaying slowly on the clock.
-  ctx.strokeStyle = 'rgba(255, 150, 120, 0.20)';
-  ctx.lineWidth = 3;
+  ctx.strokeStyle = 'rgba(255, 150, 120, 0.36)';
+  ctx.lineWidth = 4;
   ctx.lineCap = 'round';
   for (let i = -3; i <= 3; i += 1) {
     const tx = cx + i * 52;
@@ -509,7 +511,10 @@ function drawClash(ctx, world) {
   const YOU_X = 300;
   const FOE_X = 688;
 
-  text(ctx, 'YOU PLAYED', YOU_X, 186, 'bold 13px system-ui, sans-serif', MUTED);
+  // Labels sit at baseline 190: glyph tops ~180, 6 px clear of the end
+  // ribbon's bottom edge (174) and 6 px clear of the cards (196). At 186
+  // the ribbon clipped their tops on win/loss.
+  text(ctx, 'YOU PLAYED', YOU_X, 190, 'bold 13px system-ui, sans-serif', MUTED);
   if (you.length === 0) {
     ctx.save();
     ctx.globalAlpha = 0.5;
@@ -529,7 +534,7 @@ function drawClash(ctx, world) {
 
   text(ctx, 'VS', 672, cy + cardH / 2 + 8, 'bold 24px Georgia, serif', CORAL_RED, 'center', 'middle');
 
-  text(ctx, 'SHE PLAYED', FOE_X, 186, 'bold 13px system-ui, sans-serif', MUTED);
+  text(ctx, 'SHE PLAYED', FOE_X, 190, 'bold 13px system-ui, sans-serif', MUTED);
   if (foe.length === 0) {
     ctx.save();
     ctx.globalAlpha = 0.5;
@@ -729,6 +734,12 @@ function drawEndScreen(ctx, world, won) {
   ctx.strokeStyle = color;
   ctx.stroke();
   text(ctx, title, 640, ry + rh / 2 + 1, 'bold 38px Georgia, serif', color, 'center', 'middle');
+  // Re-paint the clash labels AFTER the veil and ribbon, at full
+  // brightness: under the veil they came out dim, and at baseline 186
+  // the ribbon's bottom edge clipped their tops. Same baseline (190)
+  // as drawClash, so play and end screens agree.
+  text(ctx, 'YOU PLAYED', 300, 190, 'bold 13px system-ui, sans-serif', '#d7ecf7');
+  text(ctx, 'SHE PLAYED', 688, 190, 'bold 13px system-ui, sans-serif', '#d7ecf7');
   // Sub and stats in the gap below the clash cards (420) and above the
   // hand (496); the life line folds into the stats line so nothing
   // reaches the hand numbers at y 488.
