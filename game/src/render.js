@@ -156,16 +156,27 @@ function paintTable(ctx, world) {
   ctx.fillRect(0, 0, width, height);
 
   // The glow of the deep: a soft teal pool in the middle of the table.
+  // Stronger than r1 (0.16 -> 0.22): the table reads flat and dark at
+  // thumbnail size, and the clash needs a lit stage, not a void.
   const glow = ctx.createRadialGradient(640, 330, 40, 640, 330, 520);
-  glow.addColorStop(0, 'rgba(47, 214, 200, 0.16)');
-  glow.addColorStop(0.6, 'rgba(47, 150, 200, 0.07)');
+  glow.addColorStop(0, 'rgba(47, 214, 200, 0.22)');
+  glow.addColorStop(0.6, 'rgba(47, 150, 200, 0.09)');
   glow.addColorStop(1, 'rgba(47, 150, 200, 0)');
   ctx.fillStyle = glow;
   ctx.fillRect(0, 0, width, height);
 
+  // A second, lower pool of light under the hand row: the hand cards
+  // sit in the darkest part of the table, and a lit floor under them
+  // keeps their paper from sinking into the teal.
+  const handGlow = ctx.createRadialGradient(640, 610, 30, 640, 610, 460);
+  handGlow.addColorStop(0, 'rgba(47, 214, 200, 0.12)');
+  handGlow.addColorStop(1, 'rgba(47, 214, 200, 0)');
+  ctx.fillStyle = handGlow;
+  ctx.fillRect(0, 300, width, height - 300);
+
   // Light rays falling from the surface, swaying slowly on the clock.
   ctx.save();
-  ctx.globalAlpha = 0.05;
+  ctx.globalAlpha = 0.08;
   ctx.fillStyle = '#bfefff';
   for (let i = 0; i < 4; i += 1) {
     const sway = Math.sin(world.time * 0.12 + i * 1.7) * 18;
@@ -209,6 +220,15 @@ function paintTable(ctx, world) {
     ctx.fillStyle = `rgba(232, 201, 122, ${0.05 + hash2(i, 17) * 0.12})`;
     ctx.fillRect(x, y, 2, 2);
   }
+
+  // A soft vignette: the corners fall away so the eye stays on the
+  // clash in the middle and the hand along the bottom. The centre
+  // stays untouched — the glow pools above already light it.
+  const vig = ctx.createRadialGradient(640, 360, 260, 640, 360, 760);
+  vig.addColorStop(0, 'rgba(2, 8, 16, 0)');
+  vig.addColorStop(1, 'rgba(2, 8, 16, 0.38)');
+  ctx.fillStyle = vig;
+  ctx.fillRect(0, 0, width, height);
 }
 
 // ---------------------------------------------------------------- cards
@@ -229,15 +249,24 @@ export function drawCardFace(ctx, card, x, y, w, h, opts = {}) {
     ctx.scale(s, s);
     ctx.translate(-cx, -(y + h / 2));
   }
-  if (opts.dim) ctx.globalAlpha = (opts.dim ? 0.5 : 1) * (pop < 1 ? pop : 1);
+  // No globalAlpha dim any more: at 0.5 the paper went grey-green over
+  // the teal table and the glyphs died (cover hand, tide 0/4). An
+  // unaffordable card now paints at full strength and takes a dark
+  // veil at the end instead — the face stays readable, the affordance
+  // stays visible as a darker card.
 
-  // Paper.
+  // Paper, with a soft drop shadow so the card lifts off the table.
   const paper = ctx.createLinearGradient(x, y, x, y + h);
   paper.addColorStop(0, PAPER);
   paper.addColorStop(1, PAPER_EDGE);
   rr(ctx, x, y, w, h, 12);
+  ctx.save();
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
+  ctx.shadowBlur = 14;
+  ctx.shadowOffsetY = 5;
   ctx.fillStyle = paper;
   ctx.fill();
+  ctx.restore();
   ctx.lineWidth = 3;
   ctx.strokeStyle = opts.selected ? GOLD : suit.color;
   ctx.stroke();
@@ -271,11 +300,11 @@ export function drawCardFace(ctx, card, x, y, w, h, opts = {}) {
   // The name sits below it with a clear gap, and the rules line below
   // that, clear of the big number's caption at the bottom.
   drawSuitGlyph(ctx, card.suit, cx, y + h * 0.44, Math.round(w * 0.21), suit.color);
-  text(ctx, suit.name.toUpperCase(), cx, y + h * 0.62, `bold ${Math.round(w * 0.085)}px Georgia, serif`, suit.dark, 'center');
+  text(ctx, suit.name.toUpperCase(), cx, y + h * 0.62, `bold ${Math.round(w * 0.095)}px Georgia, serif`, suit.dark, 'center');
 
   // One line of rules, never a paragraph. It sits clear of the big
   // number and its caption below it.
-  text(ctx, card.text, cx, y + h * 0.73, `${Math.round(w * 0.068)}px system-ui, sans-serif`, '#3a4a52', 'center');
+  text(ctx, card.text, cx, y + h * 0.73, `${Math.round(w * 0.072)}px system-ui, sans-serif`, '#3a4a52', 'center');
 
   // The big number: power for a strike, shield for a guard.
   if (card.kind === 'guard') {
@@ -289,6 +318,20 @@ export function drawCardFace(ctx, card, x, y, w, h, opts = {}) {
   // Surge cards wear their payoff on their face.
   if (card.kind === 'surge') {
     text(ctx, 'SURGE +2', x + 10, y + h - 12, `bold ${Math.round(w * 0.07)}px system-ui, sans-serif`, suit.dark, 'left');
+  }
+
+  // The unaffordable veil: a dark wash over the finished face. The
+  // glyph, name and numbers were painted at full strength underneath,
+  // so they stay legible — the card reads "not playable now", not
+  // "switched off".
+  if (opts.dim) {
+    rr(ctx, x, y, w, h, 12);
+    ctx.fillStyle = 'rgba(6, 20, 32, 0.30)';
+    ctx.fill();
+    rr(ctx, x, y, w, h, 12);
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = suit.color;
+    ctx.stroke();
   }
   ctx.restore();
 }
@@ -339,7 +382,20 @@ function drawLifeBar(ctx, x, y, w, life, max, shield, fillA, fillB) {
     ctx.fillStyle = grad;
     ctx.fill();
   }
-  text(ctx, `${life} / ${max}`, x + w / 2 - (shield > 0 ? 24 : 0), y + 16, 'bold 14px system-ui, sans-serif', '#ffffff', 'center', 'middle');
+  // A dark stroke under the life text: at low life the text straddles
+  // the fill's edge (white on red on one side, white on dark on the
+  // other) and the "9 / 20" read half-clipped in the loss shot. The
+  // stroke keeps it legible over both.
+  ctx.save();
+  ctx.font = 'bold 14px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.55)';
+  ctx.strokeText(`${life} / ${max}`, x + w / 2 - (shield > 0 ? 24 : 0), y + 16);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText(`${life} / ${max}`, x + w / 2 - (shield > 0 ? 24 : 0), y + 16);
+  ctx.restore();
   // Shield, right-aligned inside the bar, so it can never run over the
   // next card or pile beside the bar.
   if (shield > 0) {
@@ -439,49 +495,53 @@ function drawHeader(ctx, world) {
 function drawNereidaFigure(ctx, world) {
   const cx = 640;
   const domeY = 315;
-  const r = 205;
+  const r = 230;
   // Warm halo behind the whole clash, so the figure reads as one glow.
-  // Alpha ~2x the r1 values: the dome was a rumour at thumbnail size.
-  const halo = ctx.createRadialGradient(cx, 310, 30, cx, 310, 340);
-  halo.addColorStop(0, 'rgba(255, 122, 89, 0.20)');
-  halo.addColorStop(0.6, 'rgba(255, 122, 89, 0.08)');
+  // Alpha up again from r3 (0.20 -> 0.26): the dome was visible but
+  // still a rumour behind the cards at thumbnail size, and the user
+  // calls the game ugly — the rival has to OWN the middle of the table.
+  const halo = ctx.createRadialGradient(cx, 310, 30, cx, 310, 360);
+  halo.addColorStop(0, 'rgba(255, 122, 89, 0.26)');
+  halo.addColorStop(0.6, 'rgba(255, 122, 89, 0.11)');
   halo.addColorStop(1, 'rgba(255, 122, 89, 0)');
   ctx.fillStyle = halo;
-  ctx.fillRect(cx - 340, 0, 680, 560);
-  // The dome: a half-disc rising above the clash row.
+  ctx.fillRect(cx - 360, 0, 720, 580);
+  // The dome: a half-disc rising above the clash row. Bigger (205 ->
+  // 230) so its cap clears the banner and its rim frames the clash.
   const dome = ctx.createRadialGradient(cx, 190, 20, cx, 240, r);
-  dome.addColorStop(0, 'rgba(255, 170, 140, 0.30)');
-  dome.addColorStop(0.7, 'rgba(255, 122, 89, 0.18)');
-  dome.addColorStop(1, 'rgba(255, 122, 89, 0.08)');
+  dome.addColorStop(0, 'rgba(255, 170, 140, 0.36)');
+  dome.addColorStop(0.7, 'rgba(255, 122, 89, 0.22)');
+  dome.addColorStop(1, 'rgba(255, 122, 89, 0.10)');
   ctx.beginPath();
   ctx.arc(cx, domeY, r, Math.PI, 0);
   ctx.closePath();
   ctx.fillStyle = dome;
   ctx.fill();
-  ctx.lineWidth = 3;
-  ctx.strokeStyle = 'rgba(255, 181, 158, 0.60)';
+  ctx.lineWidth = 3.5;
+  ctx.strokeStyle = 'rgba(255, 181, 158, 0.75)';
   ctx.stroke();
   // Inner dome, a second shell of light.
   ctx.beginPath();
   ctx.arc(cx, domeY, r * 0.62, Math.PI, 0);
   ctx.closePath();
-  ctx.fillStyle = 'rgba(255, 190, 160, 0.18)';
+  ctx.fillStyle = 'rgba(255, 190, 160, 0.22)';
   ctx.fill();
   // Her eyes on the dome cap, above the cards: she is watching the duel.
-  // Bigger and brighter than r1: dark discs 7 -> 9, gold glints 2 -> 3.5.
-  ctx.fillStyle = 'rgba(22, 13, 46, 0.80)';
+  // Bigger again (9 -> 10.5 discs, 3.5 -> 4 glints) so they survive the
+  // thumbnail shrink.
+  ctx.fillStyle = 'rgba(22, 13, 46, 0.85)';
   ctx.beginPath();
-  ctx.arc(cx - 52, 168, 9, 0, Math.PI * 2);
-  ctx.arc(cx + 52, 168, 9, 0, Math.PI * 2);
+  ctx.arc(cx - 52, 168, 10.5, 0, Math.PI * 2);
+  ctx.arc(cx + 52, 168, 10.5, 0, Math.PI * 2);
   ctx.fill();
   ctx.fillStyle = 'rgba(232, 201, 122, 1.0)';
   ctx.beginPath();
-  ctx.arc(cx - 50, 166, 3.5, 0, Math.PI * 2);
-  ctx.arc(cx + 54, 166, 3.5, 0, Math.PI * 2);
+  ctx.arc(cx - 50, 166, 4, 0, Math.PI * 2);
+  ctx.arc(cx + 54, 166, 4, 0, Math.PI * 2);
   ctx.fill();
   // Tentacles trailing behind the cards, swaying slowly on the clock.
-  ctx.strokeStyle = 'rgba(255, 150, 120, 0.36)';
-  ctx.lineWidth = 4;
+  ctx.strokeStyle = 'rgba(255, 150, 120, 0.45)';
+  ctx.lineWidth = 5;
   ctx.lineCap = 'round';
   for (let i = -3; i <= 3; i += 1) {
     const tx = cx + i * 52;
@@ -645,9 +705,14 @@ function drawBottom(ctx, world) {
   ctx.strokeStyle = PANEL_LINE;
   ctx.stroke();
   text(ctx, `TIDE  ${player.tide} / ${player.tideMax}`, TIDE_RECT.x + 12, TIDE_RECT.y + 30, 'bold 16px system-ui, sans-serif', TEXT);
+  // Pips share the panel with the label: at tideMax 6 the old fixed
+  // 18 px spacing ran the last pip past the panel's edge (win shot).
+  // Spacing tightens when the tide grows, and the row starts a touch
+  // further left so the last pip always lands inside the panel.
+  const pipGap = player.tideMax > 5 ? 13 : 18;
   for (let i = 0; i < player.tideMax; i += 1) {
     ctx.beginPath();
-    ctx.arc(TIDE_RECT.x + 128 + i * 18, TIDE_RECT.y + 24, 6, 0, Math.PI * 2);
+    ctx.arc(TIDE_RECT.x + 124 + i * pipGap, TIDE_RECT.y + 24, 6, 0, Math.PI * 2);
     ctx.fillStyle = i < player.tide ? '#2fd6c8' : 'rgba(255,255,255,0.18)';
     ctx.fill();
   }
@@ -710,9 +775,10 @@ function drawTitle(ctx, world) {
 }
 
 function drawEndScreen(ctx, world, won) {
-  // A lighter veil than before (0.55, was 0.68): the clash cards are
-  // the evidence of the duel and must stay readable under it.
-  ctx.fillStyle = 'rgba(3, 12, 22, 0.55)';
+  // A lighter veil than before (0.45, was 0.55): the clash cards are
+  // the evidence of the duel and must stay readable under it — the
+  // loss screen especially read as a grey wash in r3.
+  ctx.fillStyle = 'rgba(3, 12, 22, 0.45)';
   ctx.fillRect(0, 0, FIELD.width, FIELD.height);
   const title = won ? 'THE TIDE IS YOURS' : 'THE DEEP KEEPS YOU';
   const color = won ? GOLD : CORAL_RED;
@@ -727,13 +793,24 @@ function drawEndScreen(ctx, world, won) {
   const rw = 680;
   const ry = 120;
   const rh = 54;
+  // A coloured bloom behind the ribbon so the headline lands: gold
+  // for the win, deep coral for the loss.
+  const bloom = ctx.createRadialGradient(640, ry + rh / 2, 20, 640, ry + rh / 2, 380);
+  bloom.addColorStop(0, won ? 'rgba(232, 201, 122, 0.20)' : 'rgba(255, 138, 102, 0.20)');
+  bloom.addColorStop(1, won ? 'rgba(232, 201, 122, 0)' : 'rgba(255, 138, 102, 0)');
+  ctx.fillStyle = bloom;
+  ctx.fillRect(rx - 120, ry - 80, rw + 240, rh + 160);
   rr(ctx, rx, ry, rw, rh, 12);
-  ctx.fillStyle = 'rgba(5, 24, 38, 0.88)';
+  ctx.save();
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 22;
+  ctx.fillStyle = 'rgba(5, 24, 38, 0.94)';
   ctx.fill();
-  ctx.lineWidth = 2;
+  ctx.restore();
+  ctx.lineWidth = 3;
   ctx.strokeStyle = color;
   ctx.stroke();
-  text(ctx, title, 640, ry + rh / 2 + 1, 'bold 38px Georgia, serif', color, 'center', 'middle');
+  text(ctx, title, 640, ry + rh / 2 + 1, 'bold 41px Georgia, serif', color, 'center', 'middle');
   // Re-paint the clash labels AFTER the veil and ribbon, at full
   // brightness: under the veil they came out dim, and at baseline 186
   // the ribbon's bottom edge clipped their tops. Same baseline (190)
